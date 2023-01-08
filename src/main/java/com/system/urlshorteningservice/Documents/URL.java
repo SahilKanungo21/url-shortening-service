@@ -10,7 +10,7 @@ import javax.persistence.Table;
 @Entity
 @Getter
 @Setter
-@Table(name="url" , schema = "url-mapping")
+@Table(name = "url", schema = "url-mapping")
 public class URL {
     @Id
     long serialId;
