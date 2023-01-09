@@ -52,7 +52,16 @@ public class UrlServices implements IUrlServices {
         return Constants.BASE_URL + "/" + sb.reverse();
     }
 
-    public String saveUrl(String longUrl) throws Exception {
+    /**
+     *  Get short Url from Db if exists
+     *  If not create a new Short Url .
+     *  what if long url exists , then fetch the long url from Redis ,
+     *  If not available on redis , then  fetch from Db
+     *
+     *  what if long url present in db but not in redis
+     *  then cache the long url from db .
+     */
+    public String getShortUrl(String longUrl) throws Exception {
         if (!urlDao.CheckIfLongURLExists(longUrl)) {
             long serialId = fetchCounterFromZK();
             String shortUrl = B62Encode(serialId);
@@ -63,7 +72,7 @@ public class UrlServices implements IUrlServices {
                 url.setSerialId(serialId);
 
                 URL savedUrl = dao.save(url);
-                System.out.println(savedUrl + "successfully saved to DB");
+                System.out.println(savedUrl + " successfully saved to DB");
                 return savedUrl.getShortURL();
             } catch (Exception ex) {
                 throw new Exception(ex.getMessage());
@@ -73,6 +82,13 @@ public class UrlServices implements IUrlServices {
         }
     }
 
+    /**
+     *What if the long url deleted from db but it still persists on cache
+     * We have to delete the record from cache also.
+     * @param longUrl
+     * @return
+     * @throws Exception
+     */
     public long deleteLongUrl(String longUrl) throws Exception {
         if (urlDao.CheckIfLongURLExists(longUrl)) {
             return urlDao.deleteRecordsAssociateWithLongURL(longUrl);
@@ -81,6 +97,13 @@ public class UrlServices implements IUrlServices {
         }
     }
 
+    /**
+     * The new url updated in the db must be reflected to existing url in the cache
+     * @param newUrl
+     * @param longUrl
+     * @return
+     * @throws Exception
+     */
     public long updateUrl(String newUrl, String longUrl) throws Exception {
         if (urlDao.CheckIfLongURLExists(longUrl)) {
             return urlDao.updateLongURL(newUrl, longUrl);
