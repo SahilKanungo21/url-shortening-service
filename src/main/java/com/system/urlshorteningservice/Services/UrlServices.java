@@ -53,13 +53,13 @@ public class UrlServices implements IUrlServices {
     }
 
     /**
-     *  Get short Url from Db if exists
-     *  If not create a new Short Url .
-     *  what if long url exists , then fetch the long url from Redis ,
-     *  If not available on redis , then  fetch from Db
-     *
-     *  what if long url present in db but not in redis
-     *  then cache the long url from db .
+     * Get short Url from Db if exists
+     * If not create a new Short Url .
+     * what if long url exists , then fetch the long url from Redis ,
+     * If not available on redis , then  fetch from Db
+     * <p>
+     * what if long url present in db but not in redis
+     * then cache the long url from db .
      */
     public String getShortUrl(String longUrl) throws Exception {
         if (!urlDao.CheckIfLongURLExists(longUrl)) {
@@ -78,13 +78,18 @@ public class UrlServices implements IUrlServices {
                 throw new Exception(ex.getMessage());
             }
         } else {
+            // If url present in db but not present in 20% of available data in Redis
+            // stmt1 : if present in redis , fetch from redis (store policy in redis is MFU 20% of unique url
+            // stmt2 : if not in redis , fetch from db and update the redis using MRU policy
+            // TODO : above operations
             throw new Exception("Long Url already exists");
         }
     }
 
     /**
-     *What if the long url deleted from db but it still persists on cache
+     * What if the long url deleted from db but it still persists on cache
      * We have to delete the record from cache also.
+     *
      * @param longUrl
      * @return
      * @throws Exception
@@ -99,6 +104,7 @@ public class UrlServices implements IUrlServices {
 
     /**
      * The new url updated in the db must be reflected to existing url in the cache
+     *
      * @param newUrl
      * @param longUrl
      * @return

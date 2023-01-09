@@ -15,6 +15,7 @@ public class URLDao {
         return jdbcTemplate.queryForObject(sql, new Object[]{longUrl}, Long.class) > 0;
     }
 
+
     public Long deleteRecordsAssociateWithLongURL(String longUrl) {
         String sql = "delete from url url0_ where url0_.longurl=?";
         return (long) jdbcTemplate.update(sql, new Object[]{longUrl});
