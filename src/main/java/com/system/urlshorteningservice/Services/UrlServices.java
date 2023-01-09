@@ -3,6 +3,7 @@ package com.system.urlshorteningservice.Services;
 import com.system.urlshorteningservice.Abstraction.IUrlServices;
 import com.system.urlshorteningservice.Documents.URL;
 import com.system.urlshorteningservice.Repository.Dao;
+import com.system.urlshorteningservice.Repository.URLDao;
 import com.system.urlshorteningservice.Utils.Constants;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
@@ -16,13 +17,17 @@ import org.springframework.stereotype.Service;
 public class UrlServices implements IUrlServices {
     private final Dao dao;
     private final ZooKeeper zooKeeper;
+
+    private final URLDao urlDao;
     private static final char[] BASE_62_CHARS =
             "zslFQ0b3579AxC4DGJ1KLMdNrORT2UWXYaeIfhHikBmEn6gPo8ptuZvwScyVjq".toCharArray();
 
     @Autowired
-    UrlServices(Dao dao, ZooKeeper zooKeeper) {
+    UrlServices(Dao dao, ZooKeeper zooKeeper,URLDao urlDao) throws InterruptedException, KeeperException {
         this.dao = dao;
         this.zooKeeper = zooKeeper;
+        this.urlDao=urlDao;
+        saveUrl("www.poco.com");
     }
 
     private long fetchCounterFromZK() throws InterruptedException, KeeperException {
@@ -49,17 +54,21 @@ public class UrlServices implements IUrlServices {
     }
 
     public URL saveUrl(String longUrl) throws InterruptedException, KeeperException {
-        long serialId = fetchCounterFromZK();
-        String shortUrl = B62Encode(serialId);
-        try {
-            URL url = new URL();
-            url.setLongURL(longUrl);
-            url.setShortURL(shortUrl);
-            url.setSerialId(serialId);
+        if(!urlDao.CheckIfLongURLExists(longUrl)) {
+            long serialId = fetchCounterFromZK();
+            String shortUrl = B62Encode(serialId);
+            try {
+                URL url = new URL();
+                url.setLongURL(longUrl);
+                url.setShortURL(shortUrl);
+                url.setSerialId(serialId);
 
-            return dao.save(url);
-        } catch (Exception ex) {
-            throw new RuntimeException(ex.getMessage());
+                return dao.save(url);
+            } catch (Exception ex) {
+                throw new RuntimeException(ex.getMessage());
+            }
+        }else{
+            throw new RuntimeException("Long Url already exists");
         }
     }
 
