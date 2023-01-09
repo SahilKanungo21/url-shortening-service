@@ -1,12 +1,9 @@
 package com.system.urlshorteningservice.Abstraction;
 
-import com.system.urlshorteningservice.Documents.URL;
-import org.apache.zookeeper.KeeperException;
-
 public interface IUrlServices {
-    public URL saveUrl(String longUrl) throws InterruptedException, KeeperException;
+    public String saveUrl(String longUrl) throws Exception;
 
-    public long deleteLongUrl(String longUrl);
+    public long deleteLongUrl(String longUrl) throws Exception;
 
-    public URL updateUrl(String longUrl);
+    public long updateUrl(String newLongUrl, String longUrl) throws Exception;
 }

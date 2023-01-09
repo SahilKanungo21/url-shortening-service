@@ -23,11 +23,10 @@ public class UrlServices implements IUrlServices {
             "zslFQ0b3579AxC4DGJ1KLMdNrORT2UWXYaeIfhHikBmEn6gPo8ptuZvwScyVjq".toCharArray();
 
     @Autowired
-    UrlServices(Dao dao, ZooKeeper zooKeeper,URLDao urlDao) throws InterruptedException, KeeperException {
+    UrlServices(Dao dao, ZooKeeper zooKeeper, URLDao urlDao) throws Exception {
         this.dao = dao;
         this.zooKeeper = zooKeeper;
-        this.urlDao=urlDao;
-        saveUrl("www.poco.com");
+        this.urlDao = urlDao;
     }
 
     private long fetchCounterFromZK() throws InterruptedException, KeeperException {
@@ -53,8 +52,8 @@ public class UrlServices implements IUrlServices {
         return Constants.BASE_URL + "/" + sb.reverse();
     }
 
-    public URL saveUrl(String longUrl) throws InterruptedException, KeeperException {
-        if(!urlDao.CheckIfLongURLExists(longUrl)) {
+    public String saveUrl(String longUrl) throws Exception {
+        if (!urlDao.CheckIfLongURLExists(longUrl)) {
             long serialId = fetchCounterFromZK();
             String shortUrl = B62Encode(serialId);
             try {
@@ -63,20 +62,30 @@ public class UrlServices implements IUrlServices {
                 url.setShortURL(shortUrl);
                 url.setSerialId(serialId);
 
-                return dao.save(url);
+                URL savedUrl = dao.save(url);
+                System.out.println(savedUrl + "successfully saved to DB");
+                return savedUrl.getShortURL();
             } catch (Exception ex) {
-                throw new RuntimeException(ex.getMessage());
+                throw new Exception(ex.getMessage());
             }
-        }else{
-            throw new RuntimeException("Long Url already exists");
+        } else {
+            throw new Exception("Long Url already exists");
         }
     }
 
-    public long deleteLongUrl(String longUrl) {
-        return 0;
+    public long deleteLongUrl(String longUrl) throws Exception {
+        if (urlDao.CheckIfLongURLExists(longUrl)) {
+            return urlDao.deleteRecordsAssociateWithLongURL(longUrl);
+        } else {
+            throw new Exception(longUrl + " does not exists in Db");
+        }
     }
 
-    public URL updateUrl(String longUrl) {
-        return null;
+    public long updateUrl(String newUrl, String longUrl) throws Exception {
+        if (urlDao.CheckIfLongURLExists(longUrl)) {
+            return urlDao.updateLongURL(newUrl, longUrl);
+        }
+        throw new Exception(longUrl + "does not exists in Db");
     }
+
 }
