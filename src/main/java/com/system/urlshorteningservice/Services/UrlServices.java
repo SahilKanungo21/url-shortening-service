@@ -30,16 +30,14 @@ public class UrlServices implements IUrlServices {
     private final RedisTemplate<String, Object> redisTemplate;
     private final URLDao urlDao;
 
-    // formatting  cache
-//    @PostConstruct
-//    public String cleanUpCache() {
-//        redisTemplate.execute((RedisCallback<String>) connection -> {
-//            connection.flushDb();
-//            return "Cache cleared successfully!";
-//        });
-//        return "";
-//    }
-
+    // formatting all the data from cache
+    public String cleanUpCache() {
+        redisTemplate.execute((RedisCallback<String>) connection -> {
+            connection.flushDb();
+            return "Cache cleared successfully!";
+        });
+        return "";
+    }
 
     private static final char[] BASE_62_CHARS =
             "zslFQ0b3579AxC4DGJ1KLMdNrORT2UWXYaeIfhHikBmEn6gPo8ptuZvwScyVjq".toCharArray();
@@ -134,7 +132,6 @@ public class UrlServices implements IUrlServices {
         return cacheData.getShortURL();
     }
 
-
     private void deleteLongUrlFromCache(String longUrl) {
         if (Boolean.TRUE.equals(redisTemplate.hasKey(longUrl))) {
             try {
@@ -154,7 +151,7 @@ public class UrlServices implements IUrlServices {
      * @param longUrl
      * @return
      */
-    @CacheEvict(cacheNames = "url-shortener",key = "#longUrl")
+    @CacheEvict(cacheNames = "url-shortener", key = "#longUrl")
     public long deleteLongUrl(String longUrl) {
         if (urlDao.CheckIfLongURLExistsInDB(longUrl)) {
             try {
@@ -176,13 +173,20 @@ public class UrlServices implements IUrlServices {
 
     /**
      * The new url updated in the db must be reflected to existing url in the cache
-     *
-     * @param newUrl
-     * @param longUrl
      */
     public long updateUrl(String newUrl, String longUrl) {
         if (urlDao.CheckIfLongURLExistsInDB(longUrl)) {
-            return urlDao.updateLongURL(newUrl, longUrl);
+            try {
+                long noOfUpdatedRecords = urlDao.updateLongURL(newUrl, longUrl);
+                LOGGER.info(noOfUpdatedRecords + " records updated that are associated with "
+                        + longUrl + "from DB");
+                deleteLongUrlFromCache(longUrl);
+                LOGGER.info("deleted existingURL from Cache Successfully " + longUrl);
+                return noOfUpdatedRecords;
+            } catch (CustomException ex) {
+                LOGGER.error(longUrl + " update failed !!");
+                throw new CustomException(longUrl + " can not be updated .", HttpStatus.INTERNAL_SERVER_ERROR);
+            }
         }
         throw new CustomException(longUrl + "does not exists in Db", HttpStatus.BAD_REQUEST);
     }

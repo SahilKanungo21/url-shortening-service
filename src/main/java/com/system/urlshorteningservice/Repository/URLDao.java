@@ -32,7 +32,7 @@ public class URLDao {
     }
 
     public long updateLongURL(String newUrl, String existingUrl) {
-        String sql = "update url url0_ set url0_.longurl=? where url0_longurl=?";
+        String sql = "update url url0_ set url0_.longurl=? where url0_.longurl=?";
         return jdbcTemplate.update(sql, new Object[]{newUrl, existingUrl});
     }
 
