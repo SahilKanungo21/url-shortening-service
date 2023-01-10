@@ -20,11 +20,10 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.PostConstruct;
-
 @Service
 public class UrlServices implements IUrlServices {
     Logger LOGGER = LoggerFactory.getLogger(UrlServices.class);
+
     private final Dao dao;
     private final ZooKeeper zooKeeper;
     private final RedisTemplate<String, Object> redisTemplate;
@@ -43,8 +42,7 @@ public class UrlServices implements IUrlServices {
             "zslFQ0b3579AxC4DGJ1KLMdNrORT2UWXYaeIfhHikBmEn6gPo8ptuZvwScyVjq".toCharArray();
 
     @Autowired
-    UrlServices(Dao dao, ZooKeeper zooKeeper, URLDao urlDao, RedisTemplate<String, Object> redisTemplate)
-            throws Exception {
+    UrlServices(Dao dao, ZooKeeper zooKeeper, URLDao urlDao, RedisTemplate<String, Object> redisTemplate) {
         this.dao = dao;
         this.zooKeeper = zooKeeper;
         this.urlDao = urlDao;
@@ -76,7 +74,7 @@ public class UrlServices implements IUrlServices {
     }
 
     /**
-     * Get short Url from Db if exists
+     * Get short Url from Db if exists ,
      * If not create a new Short Url .
      * what if long url exists , then fetch the long url from Redis ,
      * If not available on redis , then  fetch from Db
@@ -97,7 +95,8 @@ public class UrlServices implements IUrlServices {
     }
 
     @Cacheable(cacheNames = "url-shorterner", key = "#longUrl")
-    public String getShortUrl(String longUrl) throws InterruptedException, KeeperException {
+    public String getShortUrl(String longUrl)
+            throws InterruptedException, KeeperException {
         if (Boolean.FALSE.equals(redisTemplate.hasKey(longUrl))) {
             long serialId = fetchCounterFromZK();
             String shortUrl = B62Encode(serialId);
@@ -145,11 +144,8 @@ public class UrlServices implements IUrlServices {
     }
 
     /**
-     * What if the long url deleted from db but it still persists on cache
+     * What if the long url deleted from db, but it still persists on cache
      * We have to delete the record from cache also.
-     *
-     * @param longUrl
-     * @return
      */
     @CacheEvict(cacheNames = "url-shortener", key = "#longUrl")
     public long deleteLongUrl(String longUrl) {
@@ -172,7 +168,7 @@ public class UrlServices implements IUrlServices {
     }
 
     /**
-     * The new url updated in the db must be reflected to existing url in the cache
+     * The new url updated in the db must be deleted from cache
      */
     public long updateUrl(String newUrl, String longUrl) {
         if (urlDao.CheckIfLongURLExistsInDB(longUrl)) {

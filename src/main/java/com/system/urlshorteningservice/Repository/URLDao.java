@@ -1,13 +1,8 @@
 package com.system.urlshorteningservice.Repository;
 
-import com.system.urlshorteningservice.Documents.URL;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
-
-import java.sql.ResultSet;
-import java.sql.SQLException;
 
 @Component
 public class URLDao {
@@ -19,7 +14,6 @@ public class URLDao {
         String sql = "select count(*) from url url0_ where url0_.longurl = ?";
         return jdbcTemplate.queryForObject(sql, new Object[]{longUrl}, Long.class) > 0;
     }
-
 
     public Long deleteRecordsAssociateWithLongURL(String longUrl) {
         String sql = "delete from url url0_ where url0_.longurl=?";
