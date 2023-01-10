@@ -1,6 +1,5 @@
 package com.system.urlshorteningservice.Configuration;
 
-import com.system.urlshorteningservice.Documents.URL;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;

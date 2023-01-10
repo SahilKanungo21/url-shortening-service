@@ -15,8 +15,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.serializer.GenericToStringSerializer;
-import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
@@ -31,7 +29,8 @@ public class UrlServices implements IUrlServices {
             "zslFQ0b3579AxC4DGJ1KLMdNrORT2UWXYaeIfhHikBmEn6gPo8ptuZvwScyVjq".toCharArray();
 
     @Autowired
-    UrlServices(Dao dao, ZooKeeper zooKeeper, URLDao urlDao, RedisTemplate<String, Object> redisTemplate) throws Exception {
+    UrlServices(Dao dao, ZooKeeper zooKeeper, URLDao urlDao, RedisTemplate<String, Object> redisTemplate)
+            throws Exception {
         this.dao = dao;
         this.zooKeeper = zooKeeper;
         this.urlDao = urlDao;
@@ -128,7 +127,6 @@ public class UrlServices implements IUrlServices {
      *
      * @param longUrl
      * @return
-     * @throws CustomException
      */
     public long deleteLongUrl(String longUrl) {
         if (urlDao.CheckIfLongURLExistsInDB(longUrl)) {
@@ -143,8 +141,6 @@ public class UrlServices implements IUrlServices {
      *
      * @param newUrl
      * @param longUrl
-     * @return
-     * @throws CustomException
      */
     public long updateUrl(String newUrl, String longUrl) {
         if (urlDao.CheckIfLongURLExistsInDB(longUrl)) {
@@ -152,5 +148,4 @@ public class UrlServices implements IUrlServices {
         }
         throw new CustomException(longUrl + "does not exists in Db", HttpStatus.BAD_REQUEST);
     }
-
 }
