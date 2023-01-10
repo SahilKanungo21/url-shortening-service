@@ -13,10 +13,14 @@ import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+
+import javax.annotation.PostConstruct;
 
 @Service
 public class UrlServices implements IUrlServices {
@@ -25,6 +29,18 @@ public class UrlServices implements IUrlServices {
     private final ZooKeeper zooKeeper;
     private final RedisTemplate<String, Object> redisTemplate;
     private final URLDao urlDao;
+
+    // formatting  cache
+//    @PostConstruct
+//    public String cleanUpCache() {
+//        redisTemplate.execute((RedisCallback<String>) connection -> {
+//            connection.flushDb();
+//            return "Cache cleared successfully!";
+//        });
+//        return "";
+//    }
+
+
     private static final char[] BASE_62_CHARS =
             "zslFQ0b3579AxC4DGJ1KLMdNrORT2UWXYaeIfhHikBmEn6gPo8ptuZvwScyVjq".toCharArray();
 
@@ -39,7 +55,8 @@ public class UrlServices implements IUrlServices {
 
     private long fetchCounterFromZK() throws InterruptedException, KeeperException {
         if (zooKeeper.exists(Constants.COUNTER_NODE, false) == null) {
-            zooKeeper.create(Constants.COUNTER_NODE, "0".getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+            zooKeeper.create(Constants.COUNTER_NODE, "0".getBytes(),
+                    ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
         }
         return zooKeeper.setData(Constants.COUNTER_NODE, "".getBytes(), -1).getVersion();
     }
@@ -81,9 +98,9 @@ public class UrlServices implements IUrlServices {
 
     }
 
-    @Cacheable("#longUrl")
+    @Cacheable(cacheNames = "url-shorterner", key = "#longUrl")
     public String getShortUrl(String longUrl) throws InterruptedException, KeeperException {
-        if (!urlDao.CheckIfLongURLExistsInDB(longUrl)) {
+        if (Boolean.FALSE.equals(redisTemplate.hasKey(longUrl))) {
             long serialId = fetchCounterFromZK();
             String shortUrl = B62Encode(serialId);
             try {
@@ -106,19 +123,28 @@ public class UrlServices implements IUrlServices {
             // stmt2 : if not in redis , fetch from db and update the redis using MRU policy
             // fetch from db and added it MOST RECENTLY USED URL in redis
             // search in Redis Cache if Not present db call
-            return fetchShortUrlIfExistsFromCache(longUrl);
+            return fetchShortUrlFromCache(longUrl);
         }
     }
 
-    private String fetchShortUrlIfExistsFromCache(String longUrl) {
+    private String fetchShortUrlFromCache(String longUrl) {
+        URL cacheData = (URL) redisTemplate.opsForValue().get(longUrl);
+        assert cacheData != null;
+        LOGGER.info(longUrl + " fetched from Cache");
+        return cacheData.getShortURL();
+    }
+
+
+    private void deleteLongUrlFromCache(String longUrl) {
         if (Boolean.TRUE.equals(redisTemplate.hasKey(longUrl))) {
-            URL cacheData = (URL) redisTemplate.opsForValue().get(longUrl);
-            assert cacheData != null;
-            LOGGER.info(longUrl + " fetched from Cache");
-            return cacheData.getShortURL();
+            try {
+                redisTemplate.delete(longUrl);
+                LOGGER.info(longUrl + " Deleted Successfully from Cache!!");
+            } catch (CustomException ex) {
+                LOGGER.error(longUrl + " deletion failed in Cache", ex);
+                throw new CustomException(longUrl + " deletion failed in Cache", HttpStatus.INTERNAL_SERVER_ERROR);
+            }
         }
-        LOGGER.info(longUrl + " fetched from DB");
-        return urlDao.getShortUrlFromDB(longUrl);
     }
 
     /**
@@ -128,9 +154,21 @@ public class UrlServices implements IUrlServices {
      * @param longUrl
      * @return
      */
+    @CacheEvict(cacheNames = "url-shortener",key = "#longUrl")
     public long deleteLongUrl(String longUrl) {
         if (urlDao.CheckIfLongURLExistsInDB(longUrl)) {
-            return urlDao.deleteRecordsAssociateWithLongURL(longUrl);
+            try {
+                long noOfRecordsDeleted = urlDao.deleteRecordsAssociateWithLongURL(longUrl);
+                LOGGER.info(noOfRecordsDeleted + " records deleted that are associated with "
+                        + longUrl + "from DB");
+                // delete the long url from redis cache also
+                deleteLongUrlFromCache(longUrl);
+                return noOfRecordsDeleted;
+            } catch (CustomException ex) {
+                LOGGER.error(longUrl + " deletion failed !!");
+                throw new CustomException(longUrl + " can not be deleted .", HttpStatus.INTERNAL_SERVER_ERROR);
+            }
+            // delete the same from redis cache
         } else {
             throw new CustomException(longUrl + " does not exists in Db", HttpStatus.BAD_REQUEST);
         }
