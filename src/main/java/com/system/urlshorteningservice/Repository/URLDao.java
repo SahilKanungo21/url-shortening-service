@@ -1,8 +1,13 @@
 package com.system.urlshorteningservice.Repository;
 
+import com.system.urlshorteningservice.Documents.URL;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
+
+import java.sql.ResultSet;
+import java.sql.SQLException;
 
 @Component
 public class URLDao {
@@ -10,7 +15,7 @@ public class URLDao {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
-    public boolean CheckIfLongURLExists(String longUrl) {
+    public boolean CheckIfLongURLExistsInDB(String longUrl) {
         String sql = "select count(*) from url url0_ where url0_.longurl = ?";
         return jdbcTemplate.queryForObject(sql, new Object[]{longUrl}, Long.class) > 0;
     }
@@ -19,6 +24,11 @@ public class URLDao {
     public Long deleteRecordsAssociateWithLongURL(String longUrl) {
         String sql = "delete from url url0_ where url0_.longurl=?";
         return (long) jdbcTemplate.update(sql, new Object[]{longUrl});
+    }
+
+    public String getShortUrlFromDB(String longUrl) {
+        String sql = "select url0_.shorturl from url url0_ where url0_.longurl=? order by url0_.shorturl desc limit 1;";
+        return jdbcTemplate.queryForObject(sql, new Object[]{longUrl}, String.class);
     }
 
     public long updateLongURL(String newUrl, String existingUrl) {

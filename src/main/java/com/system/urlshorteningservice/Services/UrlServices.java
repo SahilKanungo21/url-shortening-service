@@ -11,14 +11,18 @@ import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.serializer.GenericToStringSerializer;
+import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 @Service
 public class UrlServices implements IUrlServices {
+    Logger LOGGER = LoggerFactory.getLogger(UrlServices.class);
     private final Dao dao;
     private final ZooKeeper zooKeeper;
     private final RedisTemplate<String, Object> redisTemplate;
@@ -66,13 +70,21 @@ public class UrlServices implements IUrlServices {
      * what if long url present in db but not in redis
      * then cache the long url from db .
      */
-    private void savedDataToRedisCache(URL urlData) {
-        redisTemplate.opsForValue().set(urlData.getLongURL(), urlData);
+
+    private String getShortUrlFromCache(URL url) {
+        if (Boolean.FALSE.equals(redisTemplate.hasKey(url.getLongURL()))) {
+            redisTemplate.opsForValue().set(url.getLongURL(), url);
+        }
+        URL dataFromCache = (URL) redisTemplate.opsForValue().get(url.getLongURL());
+        System.out.println(dataFromCache);
+        assert dataFromCache != null;
+        return dataFromCache.getShortURL();
+
     }
 
     @Cacheable("#longUrl")
     public String getShortUrl(String longUrl) throws InterruptedException, KeeperException {
-        if (!urlDao.CheckIfLongURLExists(longUrl)) {
+        if (!urlDao.CheckIfLongURLExistsInDB(longUrl)) {
             long serialId = fetchCounterFromZK();
             String shortUrl = B62Encode(serialId);
             try {
@@ -82,19 +94,32 @@ public class UrlServices implements IUrlServices {
                 url.setSerialId(serialId);
 
                 URL savedUrl = dao.save(url);
-                savedDataToRedisCache(savedUrl);
-                System.out.println(savedUrl + " successfully saved to DB");
-                return savedUrl.getShortURL();
+                LOGGER.info(savedUrl + "successfully saved to MySql");
+                return getShortUrlFromCache(savedUrl);
             } catch (CustomException ex) {
+                LOGGER.error(ex.getMessage());
                 throw new CustomException(ex.getMessage(), HttpStatus.BAD_REQUEST);
             }
         } else {
             // If url present in db but not present in 20% of available data in Redis
             // stmt1 : if present in redis , fetch from redis (store policy in redis is MFU 20% of unique url
+            // stmt1 will be verified if delete policy is LRU
             // stmt2 : if not in redis , fetch from db and update the redis using MRU policy
-            // TODO : above operations
-            throw new CustomException("Long Url already exists", HttpStatus.BAD_REQUEST);
+            // fetch from db and added it MOST RECENTLY USED URL in redis
+            // search in Redis Cache if Not present db call
+            return fetchShortUrlIfExistsFromCache(longUrl);
         }
+    }
+
+    private String fetchShortUrlIfExistsFromCache(String longUrl) {
+        if (Boolean.TRUE.equals(redisTemplate.hasKey(longUrl))) {
+            URL cacheData = (URL) redisTemplate.opsForValue().get(longUrl);
+            assert cacheData != null;
+            LOGGER.info(longUrl + " fetched from Cache");
+            return cacheData.getShortURL();
+        }
+        LOGGER.info(longUrl + " fetched from DB");
+        return urlDao.getShortUrlFromDB(longUrl);
     }
 
     /**
@@ -106,7 +131,7 @@ public class UrlServices implements IUrlServices {
      * @throws CustomException
      */
     public long deleteLongUrl(String longUrl) {
-        if (urlDao.CheckIfLongURLExists(longUrl)) {
+        if (urlDao.CheckIfLongURLExistsInDB(longUrl)) {
             return urlDao.deleteRecordsAssociateWithLongURL(longUrl);
         } else {
             throw new CustomException(longUrl + " does not exists in Db", HttpStatus.BAD_REQUEST);
@@ -122,7 +147,7 @@ public class UrlServices implements IUrlServices {
      * @throws CustomException
      */
     public long updateUrl(String newUrl, String longUrl) {
-        if (urlDao.CheckIfLongURLExists(longUrl)) {
+        if (urlDao.CheckIfLongURLExistsInDB(longUrl)) {
             return urlDao.updateLongURL(newUrl, longUrl);
         }
         throw new CustomException(longUrl + "does not exists in Db", HttpStatus.BAD_REQUEST);

@@ -14,8 +14,8 @@ import springfox.documentation.swagger2.annotations.EnableSwagger2;
 @Configuration
 @EnableSwagger2
 public class SwaggerConfig {
-    @Bean
-    public ApiInfo metaData() {
+
+    private ApiInfo metaData() {
         return new ApiInfoBuilder()
                 .title("URL Shortening Services")
                 .description("Technology used Zookeeper , Redis and MYSql")
@@ -32,7 +32,6 @@ public class SwaggerConfig {
                 .select()
                 .apis(RequestHandlerSelectors.basePackage("com.system.urlshorteningservice"))
                 .paths(PathSelectors.any())
-                .build()
-                .apiInfo(metaData());
+                .build().apiInfo(metaData());
     }
 }
