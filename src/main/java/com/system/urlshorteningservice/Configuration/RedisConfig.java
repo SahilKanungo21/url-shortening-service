@@ -7,9 +7,12 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
+import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
+
+import java.util.Objects;
 
 @Configuration
 public class RedisConfig {
@@ -36,6 +39,12 @@ public class RedisConfig {
         template.setHashKeySerializer(new StringRedisSerializer());
         template.setHashValueSerializer(new GenericJackson2JsonRedisSerializer());
         template.afterPropertiesSet();
+        // set the eviction policy and max entries limit
+        template.execute((RedisCallback<Object>) connection -> {
+            connection.execute("CONFIG", "SET".getBytes(), "maxmemory-policy".getBytes(), "allkeys-lru".getBytes());
+            return connection.execute("CONFIG", "SET".getBytes(), "maxmemory".getBytes(), "1000000".getBytes());
+        });
+
         return template;
     }
 }

@@ -82,6 +82,11 @@ public class UrlServices implements IUrlServices {
      * what if long url present in db but not in redis
      * then cache the long url from db .
      */
+    private void mostRecentlyUsedDataFromCache(String key){
+        redisTemplate.opsForList().rightPush("MRU-list", key);
+        redisTemplate.opsForList().trim("MRU-list", 0, 1000);
+        LOGGER.info("Most recently Used URLs are "+redisTemplate.opsForValue().get("MRU-list"));
+    }
 
     private String getShortUrlFromCache(URL url) {
         if (Boolean.FALSE.equals(redisTemplate.hasKey(url.getLongURL()))) {
@@ -90,6 +95,7 @@ public class UrlServices implements IUrlServices {
         URL dataFromCache = (URL) redisTemplate.opsForValue().get(url.getLongURL());
         System.out.println(dataFromCache);
         assert dataFromCache != null;
+        mostRecentlyUsedDataFromCache(dataFromCache.getLongURL());
         return dataFromCache.getShortURL();
 
     }
@@ -128,6 +134,7 @@ public class UrlServices implements IUrlServices {
         URL cacheData = (URL) redisTemplate.opsForValue().get(longUrl);
         assert cacheData != null;
         LOGGER.info(longUrl + " fetched from Cache");
+        mostRecentlyUsedDataFromCache(cacheData.getLongURL());
         return cacheData.getShortURL();
     }
 
