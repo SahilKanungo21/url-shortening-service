@@ -20,9 +20,9 @@ public class URLDao {
         return (long) jdbcTemplate.update(sql, new Object[]{longUrl});
     }
 
-    public String getShortUrlFromDB(String longUrl) {
-        String sql = "select url0_.shorturl from url url0_ where url0_.longurl=? order by url0_.shorturl desc limit 1;";
-        return jdbcTemplate.queryForObject(sql, new Object[]{longUrl}, String.class);
+    public String getLongUrlFromDB(String shortUrl) {
+        String sql = "select url0_.longurl from url url0_ where url0_.shorturl=? order by url0_.shorturl desc limit 1;";
+        return jdbcTemplate.queryForObject(sql, new Object[]{shortUrl}, String.class);
     }
 
     public long updateLongURL(String newUrl, String existingUrl) {

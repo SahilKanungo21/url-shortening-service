@@ -6,4 +6,6 @@ public interface IUrlServices {
     public long deleteLongUrl(String longUrl) throws Exception;
 
     public long updateUrl(String newLongUrl, String longUrl) throws Exception;
+
+    public String mapShortURLToLongURL(String shortUrl);
 }

@@ -82,20 +82,25 @@ public class UrlServices implements IUrlServices {
      * what if long url present in db but not in redis
      * then cache the long url from db .
      */
-    private void mostRecentlyUsedDataFromCache(String key){
+    private void mostRecentlyUsedDataFromCache(Object key){
         redisTemplate.opsForList().rightPush("MRU-list", key);
         redisTemplate.opsForList().trim("MRU-list", 0, 1000);
         LOGGER.info("Most recently Used URLs are "+redisTemplate.opsForValue().get("MRU-list"));
     }
 
+    /**
+     * TODO : Replace the key from long url to short url
+     * TODO : Clean up policy
+     */
+
     private String getShortUrlFromCache(URL url) {
         if (Boolean.FALSE.equals(redisTemplate.hasKey(url.getLongURL()))) {
-            redisTemplate.opsForValue().set(url.getLongURL(), url);
+            redisTemplate.opsForValue().set(url.getShortURL(), url);
         }
         URL dataFromCache = (URL) redisTemplate.opsForValue().get(url.getLongURL());
         System.out.println(dataFromCache);
         assert dataFromCache != null;
-        mostRecentlyUsedDataFromCache(dataFromCache.getLongURL());
+        //mostRecentlyUsedDataFromCache(dataFromCache.getLongURL());
         return dataFromCache.getShortURL();
 
     }
@@ -134,7 +139,7 @@ public class UrlServices implements IUrlServices {
         URL cacheData = (URL) redisTemplate.opsForValue().get(longUrl);
         assert cacheData != null;
         LOGGER.info(longUrl + " fetched from Cache");
-        mostRecentlyUsedDataFromCache(cacheData.getLongURL());
+       // mostRecentlyUsedDataFromCache(cacheData.getLongURL());
         return cacheData.getShortURL();
     }
 
@@ -192,5 +197,12 @@ public class UrlServices implements IUrlServices {
             }
         }
         throw new CustomException(longUrl + "does not exists in Db", HttpStatus.BAD_REQUEST);
+    }
+
+    public String mapShortURLToLongURL(String shortUrl) {
+        // fetch the long url and check if that url present in redis or not
+        String longurl = urlDao.getLongUrlFromDB(shortUrl);
+        redisTemplate.hasKey(longurl);
+        return longurl;
     }
 }

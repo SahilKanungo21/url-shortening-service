@@ -2,14 +2,23 @@ package com.system.urlshorteningservice.Controller;
 
 import com.system.urlshorteningservice.Abstraction.IUrlServices;
 import com.system.urlshorteningservice.Exceptions.CustomException;
+import com.system.urlshorteningservice.Utils.Constants;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.view.RedirectView;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 @RestController
 @RequestMapping("/url")
 public class UrlController {
+
+    Logger LOGGER = LoggerFactory.getLogger(UrlController.class);
 
     private final IUrlServices iUrlServices;
 
@@ -28,6 +37,17 @@ public class UrlController {
         } catch (Exception ex) {
             return new ResponseEntity<>(ex.getMessage(), HttpStatus.BAD_REQUEST);
         }
+    }
+
+    @GetMapping("/{shortUrl}")
+    public RedirectView redirectUrl(@PathVariable("shortUrl") String id) {
+        LOGGER.debug("Received shortened url to redirect: " + id);
+        // Extract the ID from shortUrl
+        String[] uniqueId = id.split("/") ;
+        String redirectUrl = iUrlServices.mapShortURLToLongURL(Constants.BASE_URL+"/"+uniqueId[1]);
+        RedirectView redirectView = new RedirectView();
+        redirectView.setUrl(redirectUrl);
+        return redirectView;
     }
 
     @CrossOrigin("*")
