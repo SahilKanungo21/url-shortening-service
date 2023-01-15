@@ -20,6 +20,8 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 public class UrlServices implements IUrlServices {
     Logger LOGGER = LoggerFactory.getLogger(UrlServices.class);
@@ -94,10 +96,10 @@ public class UrlServices implements IUrlServices {
      */
 
     private String getShortUrlFromCache(URL url) {
-        if (Boolean.FALSE.equals(redisTemplate.hasKey(url.getLongURL()))) {
+        if (Boolean.FALSE.equals(redisTemplate.hasKey(url.getShortURL()))) {
             redisTemplate.opsForValue().set(url.getShortURL(), url);
         }
-        URL dataFromCache = (URL) redisTemplate.opsForValue().get(url.getLongURL());
+        URL dataFromCache = (URL) redisTemplate.opsForValue().get(url.getShortURL());
         System.out.println(dataFromCache);
         assert dataFromCache != null;
         //mostRecentlyUsedDataFromCache(dataFromCache.getLongURL());
@@ -105,33 +107,23 @@ public class UrlServices implements IUrlServices {
 
     }
 
-    @Cacheable(cacheNames = "url-shorterner", key = "#longUrl")
+    @Cacheable(cacheNames = "url-shorterner", key = "#shortUrl")
     public String getShortUrl(String longUrl)
             throws InterruptedException, KeeperException {
-        if (Boolean.FALSE.equals(redisTemplate.hasKey(longUrl))) {
-            long serialId = fetchCounterFromZK();
-            String shortUrl = B62Encode(serialId);
-            try {
-                URL url = new URL();
-                url.setLongURL(longUrl);
-                url.setShortURL(shortUrl);
-                url.setSerialId(serialId);
+        long serialId = fetchCounterFromZK();
+        String shortUrl = B62Encode(serialId);
+        try {
+            URL url = new URL();
+            url.setLongURL(longUrl);
+            url.setShortURL(shortUrl);
+            url.setSerialId(serialId);
 
-                URL savedUrl = dao.save(url);
-                LOGGER.info(savedUrl + "successfully saved to MySql");
-                return getShortUrlFromCache(savedUrl);
-            } catch (CustomException ex) {
-                LOGGER.error(ex.getMessage());
-                throw new CustomException(ex.getMessage(), HttpStatus.BAD_REQUEST);
-            }
-        } else {
-            // If url present in db but not present in 20% of available data in Redis
-            // stmt1 : if present in redis , fetch from redis (store policy in redis is MFU 20% of unique url
-            // stmt1 will be verified if delete policy is LRU
-            // stmt2 : if not in redis , fetch from db and update the redis using MRU policy
-            // fetch from db and added it MOST RECENTLY USED URL in redis
-            // search in Redis Cache if Not present db call
-            return fetchShortUrlFromCache(longUrl);
+            URL savedUrl = dao.save(url);
+            LOGGER.info(savedUrl + "successfully saved to MySql");
+            return getShortUrlFromCache(savedUrl);
+        } catch (CustomException ex) {
+            LOGGER.error(ex.getMessage());
+            throw new CustomException(ex.getMessage(), HttpStatus.BAD_REQUEST);
         }
     }
 
@@ -144,22 +136,25 @@ public class UrlServices implements IUrlServices {
     }
 
     private void deleteLongUrlFromCache(String longUrl) {
-        if (Boolean.TRUE.equals(redisTemplate.hasKey(longUrl))) {
             try {
-                redisTemplate.delete(longUrl);
+                List<String> keyToBeDeleted = urlDao.getListOfShortUrls(longUrl);
+                for(String key : keyToBeDeleted){
+                    if(Boolean.TRUE.equals(redisTemplate.hasKey(key))){
+                        redisTemplate.delete(key);
+                    }
+                }
                 LOGGER.info(longUrl + " Deleted Successfully from Cache!!");
             } catch (CustomException ex) {
                 LOGGER.error(longUrl + " deletion failed in Cache", ex);
                 throw new CustomException(longUrl + " deletion failed in Cache", HttpStatus.INTERNAL_SERVER_ERROR);
             }
-        }
     }
 
     /**
      * What if the long url deleted from db, but it still persists on cache
      * We have to delete the record from cache also.
      */
-    @CacheEvict(cacheNames = "url-shortener", key = "#longUrl")
+    @CacheEvict(cacheNames = "url-shortener", key = "#shortUrl")
     public long deleteLongUrl(String longUrl) {
         if (urlDao.CheckIfLongURLExistsInDB(longUrl)) {
             try {
@@ -201,8 +196,13 @@ public class UrlServices implements IUrlServices {
 
     public String mapShortURLToLongURL(String shortUrl) {
         // fetch the long url and check if that url present in redis or not
-        String longurl = urlDao.getLongUrlFromDB(shortUrl);
-        redisTemplate.hasKey(longurl);
-        return longurl;
+        if(Boolean.TRUE.equals(redisTemplate.hasKey(shortUrl))){
+            URL dataFromCache = (URL) redisTemplate.opsForValue().get(shortUrl);
+            assert dataFromCache != null;
+            return dataFromCache.getLongURL();
+        }
+        String longUrl = urlDao.getLongUrlFromDB(shortUrl);
+        assert longUrl!=null;
+        return longUrl;
     }
 }

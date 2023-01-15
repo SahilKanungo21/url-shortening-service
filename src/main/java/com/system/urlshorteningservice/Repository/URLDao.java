@@ -2,7 +2,12 @@ package com.system.urlshorteningservice.Repository;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
+
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.List;
 
 @Component
 public class URLDao {
@@ -28,6 +33,16 @@ public class URLDao {
     public long updateLongURL(String newUrl, String existingUrl) {
         String sql = "update url url0_ set url0_.longurl=? where url0_.longurl=?";
         return jdbcTemplate.update(sql, new Object[]{newUrl, existingUrl});
+    }
+
+    public List<String> getListOfShortUrls(String longUrl){
+        String sql = "select url0.shorturl from url url0_ where url0_.longurl = ?";
+        return jdbcTemplate.query(sql, new Object[] { "longurl" }, new RowMapper<String>() {
+            @Override
+            public String mapRow(ResultSet rs, int rowNum) throws SQLException {
+                return rs.getString("shorturl");
+            }
+        });
     }
 
 }
