@@ -46,7 +46,7 @@ public class UrlController {
         String[] uniqueId = id.split("/") ;
         String redirectUrl = iUrlServices.mapShortURLToLongURL(Constants.BASE_URL+"/"+uniqueId[1]);
         RedirectView redirectView = new RedirectView();
-        redirectView.setUrl(redirectUrl);
+        redirectView.setUrl("https//"+redirectUrl);
         return redirectView;
     }
 
